@@ -1,0 +1,45 @@
+server:
+  static_dir: web
+
+robot:
+  # UR5e controller IP address on the robot network.
+  host: 192.168.0.2
+
+  # This must be true in your copied config/teleop.yaml before --real will move hardware.
+  enabled: false
+
+  # Used only in simulation/dry-run mode.
+  initial_tcp_pose: [0.40, 0.00, 0.35, 0.0, 3.14159, 0.0]
+
+  # Optional TCP and payload settings. Keep zero/empty unless your tool has been measured.
+  tcp_offset: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+  payload_kg:
+  payload_cog:
+
+control:
+  # Quest Browser typically sends poses at 72/80/90 Hz; the gateway smooths them at this loop rate.
+  rate_hz: 125
+  dominant_hand: right
+
+  # Quest local axes are x right, y up, -z forward. This default maps:
+  # controller forward -> robot +X, controller left -> robot +Y, controller up -> robot +Z.
+  position_axes: ["-z", "-x", "y"]
+  position_scale: 1.0
+  orientation_control: true
+
+  # Base-frame Cartesian workspace clamp in meters. Tighten this before real testing.
+  workspace_min: [0.18, -0.45, 0.08]
+  workspace_max: [0.75, 0.45, 0.70]
+
+  # Conservative operator-speed limits for first tests.
+  max_linear_speed_m_s: 0.08
+  max_angular_speed_rad_s: 0.35
+  command_timeout_s: 0.25
+  low_pass_alpha: 0.35
+
+  # UR servoL parameters.
+  servo_speed_m_s: 0.20
+  servo_accel_m_s2: 0.50
+  servo_lookahead_s: 0.10
+  servo_gain: 300
+

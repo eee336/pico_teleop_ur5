@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quest UR5e Teleop</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Meta Quest / UR5e</p>
+          <h1>Teleoperation Console</h1>
+        </div>
+        <div class="connection">
+          <span id="wsDot" class="dot off"></span>
+          <span id="wsState">Disconnected</span>
+        </div>
+      </header>
+
+      <section class="status-band" aria-label="Status">
+        <div class="status-cell">
+          <span>Robot</span>
+          <strong id="robotMode">Dry-run</strong>
+        </div>
+        <div class="status-cell">
+          <span>Operator</span>
+          <strong id="operatorState">Disabled</strong>
+        </div>
+        <div class="status-cell">
+          <span>Calibration</span>
+          <strong id="calibrationState">Waiting</strong>
+        </div>
+        <div class="status-cell">
+          <span>Deadman</span>
+          <strong id="deadmanState">Released</strong>
+        </div>
+        <div class="status-cell">
+          <span>Stream</span>
+          <strong id="streamState">Idle</strong>
+        </div>
+      </section>
+
+      <section class="control-surface" aria-label="Controls">
+        <div class="button-row">
+          <button id="enterXrBtn" class="primary">Enter VR</button>
+          <button id="calibrateBtn">Calibrate</button>
+          <button id="enableBtn" class="enable">Enable Motion</button>
+          <button id="disableBtn" class="danger">Disable</button>
+          <button id="resetBtn">Reset Cal</button>
+        </div>
+        <div id="notice" class="notice">Starting gateway connection...</div>
+      </section>
+
+      <section class="telemetry" aria-label="Telemetry">
+        <div>
+          <span>Dominant hand</span>
+          <strong id="handState">right</strong>
+        </div>
+        <div>
+          <span>Clients</span>
+          <strong id="clientState">0</strong>
+        </div>
+        <div>
+          <span>Messages</span>
+          <strong id="messageState">0</strong>
+        </div>
+        <div>
+          <span>TCP pose</span>
+          <strong id="tcpPose">--</strong>
+        </div>
+      </section>
+    </main>
+
+    <canvas id="xrCanvas" aria-hidden="true"></canvas>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
+
