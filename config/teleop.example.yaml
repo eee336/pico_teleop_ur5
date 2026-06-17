@@ -43,3 +43,19 @@ control:
   servo_lookahead_s: 0.10
   servo_gain: 300
 
+recording:
+  enabled: true
+  root_dir: data/raw
+  fps: 20
+  default_task: teleoperate the UR5e safely
+  jpeg_quality: 90
+
+  # SmolVLA training needs visual observations. Keep cameras disabled until you have
+  # calibrated an external scene camera or wrist camera.
+  cameras:
+    - name: front
+      enabled: false
+      device: 0
+      width: 640
+      height: 480
+      fps: 30

@@ -61,6 +61,12 @@ button:disabled {
   border-color: transparent;
 }
 
+.record {
+  background: var(--teal);
+  color: #061211;
+  border-color: transparent;
+}
+
 .danger {
   background: var(--red);
   color: #180505;
@@ -122,7 +128,7 @@ h1 {
 
 .status-band {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   border: 1px solid var(--line);
   border-radius: 8px;
   overflow: hidden;
@@ -192,6 +198,29 @@ h1 {
   gap: 10px;
 }
 
+.record-row {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto auto auto;
+  gap: 10px;
+}
+
+input {
+  min-height: 44px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 14px;
+  background: #111719;
+  color: #f8fbfc;
+  font: inherit;
+  font-weight: 650;
+}
+
+input:focus {
+  outline: 2px solid rgba(53, 208, 186, 0.45);
+  outline-offset: 1px;
+}
+
 .notice {
   min-height: 42px;
   display: flex;
@@ -217,7 +246,7 @@ h1 {
 
 .telemetry {
   display: grid;
-  grid-template-columns: 150px 120px 140px minmax(0, 1fr);
+  grid-template-columns: 150px 120px 140px 120px minmax(0, 1fr);
   gap: 1px;
   margin-top: 18px;
   border: 1px solid var(--line);
@@ -286,5 +315,8 @@ body.xr-active #xrCanvas {
   button {
     flex: 1 1 150px;
   }
-}
 
+  .record-row {
+    grid-template-columns: 1fr;
+  }
+}

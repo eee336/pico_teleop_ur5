@@ -9,6 +9,7 @@ from typing import Any
 import numpy as np
 
 from .config import AppConfig
+from .recording import EpisodeRecorder, RecordingSample
 from .robot import RobotInterface
 from .transforms import axis_map_matrix, clamp_vec, matrix_to_rotvec, pose_to_list, quat_to_matrix, rotvec_to_matrix
 
@@ -28,10 +29,11 @@ class QuestPose:
 
 
 class TeleopController:
-    def __init__(self, config: AppConfig, robot: RobotInterface, *, real_robot: bool):
+    def __init__(self, config: AppConfig, robot: RobotInterface, *, real_robot: bool, recorder: EpisodeRecorder | None = None):
         self.config = config
         self.robot = robot
         self.real_robot = real_robot
+        self.recorder = recorder
         self.axis_map = axis_map_matrix(config.control.position_axes)
         self.dt = 1.0 / config.control.rate_hz
 
@@ -63,6 +65,11 @@ class TeleopController:
         LOGGER.info("Teleop control loop started at %s Hz", self.config.control.rate_hz)
 
     def stop(self) -> None:
+        if self.recorder and self.recorder.active:
+            try:
+                self.recorder.stop(success=False)
+            except Exception:
+                LOGGER.exception("Failed to stop active recording during shutdown")
         self.disable()
         self._stop_event.set()
         if self._thread is not None:
@@ -131,6 +138,28 @@ class TeleopController:
             self.anchor_robot_pose = None
             self.filtered_position = None
 
+    def start_recording(self, task: str | None = None) -> dict[str, Any]:
+        if self.recorder is None:
+            raise RuntimeError("Recording is not configured")
+        return self.recorder.start(
+            task=task,
+            metadata={
+                "real_robot": self.real_robot,
+                "control": self.config.control.model_dump(),
+                "robot_host": self.config.robot.host if self.real_robot else None,
+            },
+        )
+
+    def stop_recording(self, *, success: bool = True) -> dict[str, Any]:
+        if self.recorder is None:
+            raise RuntimeError("Recording is not configured")
+        return self.recorder.stop(success=success)
+
+    def discard_recording(self) -> dict[str, Any]:
+        if self.recorder is None:
+            raise RuntimeError("Recording is not configured")
+        return self.recorder.discard()
+
     def status(self) -> dict[str, Any]:
         with self._lock:
             last_age = time.monotonic() - self.last_message_time if self.last_message_time else None
@@ -152,6 +181,7 @@ class TeleopController:
                 "workspace_min": self.config.control.workspace_min,
                 "workspace_max": self.config.control.workspace_max,
                 "dominant_hand": self.config.control.dominant_hand,
+                "recording": self.recorder.status() if self.recorder else None,
             }
 
     def _loop(self) -> None:
@@ -178,6 +208,7 @@ class TeleopController:
                     if was_active:
                         self.robot.stop_motion()
                         was_active = False
+                self._record_if_needed(now)
             except Exception as exc:  # pragma: no cover - defensive stop path
                 LOGGER.exception("Control loop error")
                 with self._lock:
@@ -255,3 +286,40 @@ class TeleopController:
 
         return target
 
+    def _record_if_needed(self, now: float) -> None:
+        recorder = self.recorder
+        if recorder is None or not recorder.should_sample(now):
+            return
+
+        with self._lock:
+            target_pose = self.last_commanded_pose.copy() if self.last_commanded_pose is not None else None
+            quest_pose = self.latest_pose
+            operator_enabled = self.operator_enabled
+            calibrated = self.calibrated
+            active = self.active
+            stale = self.stale
+
+        if target_pose is None:
+            return
+
+        try:
+            observed_tcp = self.robot.get_tcp_pose()
+        except Exception:
+            LOGGER.exception("Failed to read robot TCP pose for recording")
+            observed_tcp = [float(v) for v in target_pose]
+
+        sample = RecordingSample(
+            monotonic_s=now,
+            wall_time_s=time.time(),
+            observation_tcp_pose=[float(v) for v in observed_tcp],
+            target_tcp_pose=[float(v) for v in target_pose],
+            quest_position=quest_pose.position.tolist() if quest_pose else None,
+            quest_orientation=quest_pose.orientation.tolist() if quest_pose else None,
+            handedness=quest_pose.handedness if quest_pose else None,
+            buttons=dict(quest_pose.buttons) if quest_pose else {},
+            active=active,
+            operator_enabled=operator_enabled,
+            calibrated=calibrated,
+            stale=stale,
+        )
+        recorder.record(sample)

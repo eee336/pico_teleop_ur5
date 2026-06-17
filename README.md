@@ -10,8 +10,11 @@
 quest_ur5e_teleop/
   app.py          FastAPI / WebSocket / 静态页面服务
   controller.py   遥操作状态机、标定、限速、工作空间夹紧
+  recording.py    raw episode 采集器
   robot.py        SimRobot 与 UR RTDE 真机适配
   transforms.py   坐标轴映射、四元数、旋转向量转换
+  tools/
+    export_lerobot.py
 web/
   index.html      Quest Browser 控制台
   app.js          WebXR 手柄位姿采集与 WebSocket 协议
@@ -20,6 +23,9 @@ config/
   teleop.example.yaml
 scripts/
   make_self_signed_cert.sh
+  train_smolvla.sh
+docs/
+  lerobot_smolvla.md
 tests/
 ```
 
@@ -58,6 +64,18 @@ brew install cmake
 python -m pip install -e ".[real]"
 ```
 
+如果要采集图像数据，安装相机依赖：
+
+```bash
+python -m pip install -e ".[data]"
+```
+
+如果要导出 LeRobot 数据集，安装 LeRobot 依赖：
+
+```bash
+python -m pip install -e ".[lerobot]"
+```
+
 编辑 `config/teleop.yaml`：
 
 ```yaml
@@ -74,6 +92,12 @@ control:
   max_linear_speed_m_s: 0.08
   max_angular_speed_rad_s: 0.35
   orientation_control: true
+
+recording:
+  enabled: true
+  root_dir: data/raw
+  fps: 20
+  default_task: teleoperate the UR5e safely
 ```
 
 ## Quest 访问方式
@@ -119,6 +143,41 @@ python -m quest_ur5e_teleop --config config/teleop.yaml --host 0.0.0.0 --port 80
 4. 点 `Enable Motion`。
 5. 按住右手柄握把键移动手柄，页面状态应从 `Live` 变成 `Active`，TCP pose 会变化。
 6. 松开握把键，运动停止；按 B/Y 或网页 `Disable` 禁用。
+
+## 数据采集
+
+控制台里有 `Task instruction`、`Start Episode`、`Stop Episode` 和 `Discard`。一次成功演示的推荐流程：
+
+1. 输入自然语言任务，例如 `pick up the red block and place it in the tray`。
+2. 点 `Start Episode` 开始采集。
+3. 按正常遥操作流程完成任务。
+4. 成功就点 `Stop Episode`，失败或中断就点 `Discard`。
+
+数据默认写到 `data/raw/<session_id>/episode_000000/`，包含：
+
+- `metadata.json`：任务、schema、帧数、相机信息。
+- `frames.jsonl`：每帧 TCP state、目标 action、Quest 手柄状态。
+- `images/<camera>/*.jpg`：启用摄像头后保存的图像。
+
+更完整的 LeRobot / SmolVLA 流程见 [docs/lerobot_smolvla.md](docs/lerobot_smolvla.md)。
+
+## 导出 LeRobot
+
+采集完成后可以导出成 LeRobot dataset：
+
+```bash
+quest-ur5e-export-lerobot \
+  --raw-root data/raw \
+  --repo-id eee336/ur5e_teleop_demo \
+  --output-root data/lerobot/ur5e_teleop_demo \
+  --force
+```
+
+默认导出的 `action` 是绝对 TCP 目标 `[target_tcp_x, target_tcp_y, target_tcp_z, target_tcp_rx, target_tcp_ry, target_tcp_rz, gripper]`。训练 SmolVLA 的模板脚本：
+
+```bash
+DATASET_REPO_ID=eee336/ur5e_teleop_demo bash scripts/train_smolvla.sh
+```
 
 ## 真机运行
 
@@ -195,6 +254,9 @@ Quest 页面向 `/ws` 发送：
 { "type": "control", "action": "disable" }
 { "type": "control", "action": "calibrate" }
 { "type": "control", "action": "reset-calibration" }
+{ "type": "control", "action": "start-recording", "task": "pick up the cube" }
+{ "type": "control", "action": "stop-recording", "success": true }
+{ "type": "control", "action": "discard-recording" }
 ```
 
 后端会周期性返回：
@@ -211,3 +273,4 @@ Quest 页面向 `/ws` 发送：
 - RTDE 连接失败：检查 UR IP、Remote Control、网线、防火墙和是否有其他 RTDE 客户端占用。
 - 方向不对：先禁用姿态跟随，只小幅移动，调整 `position_axes`。
 - 抖动或跟随太猛：降低 `max_linear_speed_m_s`、`max_angular_speed_rad_s`，或降低 `low_pass_alpha`。
+- SmolVLA 训练报缺图像：启用 `recording.cameras` 并重新采集，或仅做 state-only 实验时给导出器加 `--allow-no-images`。

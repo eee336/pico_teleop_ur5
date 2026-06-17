@@ -8,16 +8,22 @@ const els = {
   calibrationState: $("calibrationState"),
   deadmanState: $("deadmanState"),
   streamState: $("streamState"),
+  recordingState: $("recordingState"),
   notice: $("notice"),
   handState: $("handState"),
   clientState: $("clientState"),
   messageState: $("messageState"),
+  frameState: $("frameState"),
   tcpPose: $("tcpPose"),
   enterXrBtn: $("enterXrBtn"),
   calibrateBtn: $("calibrateBtn"),
   enableBtn: $("enableBtn"),
   disableBtn: $("disableBtn"),
   resetBtn: $("resetBtn"),
+  taskInput: $("taskInput"),
+  startRecordingBtn: $("startRecordingBtn"),
+  stopRecordingBtn: $("stopRecordingBtn"),
+  discardRecordingBtn: $("discardRecordingBtn"),
   canvas: $("xrCanvas"),
 };
 
@@ -51,20 +57,30 @@ function renderStatus(status) {
   els.calibrationState.textContent = status.calibrated ? "Ready" : "Waiting";
   els.deadmanState.textContent = status.deadman ? "Held" : "Released";
   els.streamState.textContent = status.stale ? "Stale" : status.active ? "Active" : "Live";
+  const recording = status.recording;
+  els.recordingState.textContent = recording?.active ? "Recording" : "Idle";
   els.handState.textContent = status.dominant_hand ?? "--";
   els.clientState.textContent = String(status.clients ?? 0);
   els.messageState.textContent = String(status.messages ?? 0);
+  els.frameState.textContent = String(recording?.frame_count ?? 0);
   els.tcpPose.textContent = formatPose(status.tcp_pose);
 
   setClass(els.operatorState, status.operator_enabled ? "good" : "bad");
   setClass(els.calibrationState, status.calibrated ? "good" : "warn");
   setClass(els.deadmanState, status.deadman ? "good" : "bad");
   setClass(els.streamState, status.stale ? "bad" : status.active ? "good" : "warn");
+  setClass(els.recordingState, recording?.active ? "good" : "");
+
+  els.startRecordingBtn.disabled = Boolean(recording?.active);
+  els.stopRecordingBtn.disabled = !recording?.active;
+  els.discardRecordingBtn.disabled = !recording?.active;
 
   if (status.last_error) {
     setNotice(status.last_error, "bad");
   } else if (status.real_robot && status.active) {
     setNotice("Robot motion active.", "good");
+  } else if (recording?.active) {
+    setNotice(`Recording ${recording.frame_count ?? 0} frames.`, "good");
   } else if (!status.calibrated) {
     setNotice("Controller pose required before calibration.", "");
   } else {
@@ -113,9 +129,29 @@ function sendJson(message) {
 }
 
 async function postControl(action) {
-  if (sendJson({ type: "control", action })) return;
-  const path = action === "reset-calibration" ? "/api/reset-calibration" : `/api/${action}`;
-  const response = await fetch(path, { method: "POST" });
+  const task = els.taskInput.value.trim();
+  const message = { type: "control", action };
+  if (action === "start-recording") message.task = task;
+  if (sendJson(message)) return;
+
+  let path = `/api/${action}`;
+  let payload = {};
+  if (action === "reset-calibration") path = "/api/reset-calibration";
+  if (action === "start-recording") {
+    path = "/api/recording/start";
+    payload = { task };
+  }
+  if (action === "stop-recording") {
+    path = "/api/recording/stop";
+    payload = { success: true };
+  }
+  if (action === "discard-recording") path = "/api/recording/discard";
+
+  const response = await fetch(path, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload),
+  });
   const data = await response.json();
   renderStatus(data);
 }
@@ -246,8 +282,10 @@ els.calibrateBtn.addEventListener("click", () => postControl("calibrate"));
 els.enableBtn.addEventListener("click", () => postControl("enable"));
 els.disableBtn.addEventListener("click", () => postControl("disable"));
 els.resetBtn.addEventListener("click", () => postControl("reset-calibration"));
+els.startRecordingBtn.addEventListener("click", () => postControl("start-recording"));
+els.stopRecordingBtn.addEventListener("click", () => postControl("stop-recording"));
+els.discardRecordingBtn.addEventListener("click", () => postControl("discard-recording"));
 
 connectSocket();
 pollStatus();
 setInterval(pollStatus, 1200);
-

@@ -81,10 +81,48 @@ class ControlConfig(BaseModel):
         return self
 
 
+class CameraConfig(BaseModel):
+    name: str = "front"
+    enabled: bool = False
+    device: int | str = 0
+    width: int = 640
+    height: int = 480
+    fps: int = 30
+
+    @model_validator(mode="after")
+    def _valid_camera(self) -> "CameraConfig":
+        if not self.name.replace("_", "").replace("-", "").isalnum():
+            raise ValueError("Camera names must contain only letters, numbers, hyphens and underscores")
+        if self.width <= 0 or self.height <= 0 or self.fps <= 0:
+            raise ValueError("Camera width, height and fps must be positive")
+        return self
+
+
+class RecordingConfig(BaseModel):
+    enabled: bool = True
+    root_dir: str = "data/raw"
+    fps: int = 20
+    default_task: str = "teleoperate the UR5e safely"
+    jpeg_quality: int = 90
+    cameras: list[CameraConfig] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _valid_recording(self) -> "RecordingConfig":
+        if self.fps <= 0 or self.fps > 120:
+            raise ValueError("recording.fps must be in [1, 120]")
+        if self.jpeg_quality < 1 or self.jpeg_quality > 100:
+            raise ValueError("recording.jpeg_quality must be in [1, 100]")
+        names = [camera.name for camera in self.cameras if camera.enabled]
+        if len(names) != len(set(names)):
+            raise ValueError("Enabled camera names must be unique")
+        return self
+
+
 class AppConfig(BaseModel):
     server: ServerConfig = Field(default_factory=ServerConfig)
     robot: RobotConfig = Field(default_factory=RobotConfig)
     control: ControlConfig = Field(default_factory=ControlConfig)
+    recording: RecordingConfig = Field(default_factory=RecordingConfig)
 
 
 def _deep_update(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
@@ -112,4 +150,3 @@ def load_config(path: str | Path | None = None) -> AppConfig:
 
     defaults = AppConfig().model_dump()
     return AppConfig.model_validate(_deep_update(defaults, data))
-

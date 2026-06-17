@@ -9,6 +9,7 @@ import uvicorn
 from .app import create_app
 from .config import load_config
 from .controller import TeleopController
+from .recording import EpisodeRecorder
 from .robot import RTDERobot, SimRobot
 
 
@@ -47,7 +48,8 @@ def main() -> None:
         )
 
     robot = RTDERobot(config) if args.real else SimRobot(config)
-    controller = TeleopController(config, robot, real_robot=args.real)
+    recorder = EpisodeRecorder(config.recording, project_root)
+    controller = TeleopController(config, robot, real_robot=args.real, recorder=recorder)
     app = create_app(config, controller, project_root)
 
     scheme = "https" if args.certfile and args.keyfile else "http"
@@ -64,4 +66,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

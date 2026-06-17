@@ -8,5 +8,6 @@ build/
 *.egg-info/
 config/teleop.yaml
 certs/
+data/
+outputs/
 .DS_Store
-

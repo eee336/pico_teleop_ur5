@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import Body, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -49,6 +49,30 @@ def create_app(config: AppConfig, controller: TeleopController, project_root: Pa
         controller.reset_calibration()
         return JSONResponse(controller.status())
 
+    @app.post("/api/recording/start")
+    async def start_recording(payload: dict[str, Any] = Body(default_factory=dict)) -> JSONResponse:
+        try:
+            controller.start_recording(task=payload.get("task"))
+        except RuntimeError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return JSONResponse(controller.status())
+
+    @app.post("/api/recording/stop")
+    async def stop_recording(payload: dict[str, Any] = Body(default_factory=dict)) -> JSONResponse:
+        try:
+            controller.stop_recording(success=bool(payload.get("success", True)))
+        except RuntimeError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return JSONResponse(controller.status())
+
+    @app.post("/api/recording/discard")
+    async def discard_recording() -> JSONResponse:
+        try:
+            controller.discard_recording()
+        except RuntimeError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return JSONResponse(controller.status())
+
     @app.websocket("/ws")
     async def websocket_endpoint(websocket: WebSocket) -> None:
         await websocket.accept()
@@ -65,16 +89,26 @@ def create_app(config: AppConfig, controller: TeleopController, project_root: Pa
                         controller.calibrate()
                 elif msg_type == "control":
                     action = message.get("action")
-                    if action == "enable":
-                        controller.enable()
-                    elif action == "disable":
-                        controller.disable()
-                    elif action == "calibrate":
-                        controller.calibrate()
-                    elif action == "reset-calibration":
-                        controller.reset_calibration()
-                    else:
-                        await websocket.send_json({"type": "error", "message": f"Unknown action {action!r}"})
+                    try:
+                        if action == "enable":
+                            controller.enable()
+                        elif action == "disable":
+                            controller.disable()
+                        elif action == "calibrate":
+                            controller.calibrate()
+                        elif action == "reset-calibration":
+                            controller.reset_calibration()
+                        elif action == "start-recording":
+                            controller.start_recording(task=message.get("task"))
+                        elif action == "stop-recording":
+                            controller.stop_recording(success=bool(message.get("success", True)))
+                        elif action == "discard-recording":
+                            controller.discard_recording()
+                        else:
+                            await websocket.send_json({"type": "error", "message": f"Unknown action {action!r}"})
+                            continue
+                    except RuntimeError as exc:
+                        await websocket.send_json({"type": "error", "message": str(exc), "status": controller.status()})
                         continue
                 else:
                     await websocket.send_json({"type": "error", "message": f"Unknown message type {msg_type!r}"})
@@ -91,4 +125,3 @@ def create_app(config: AppConfig, controller: TeleopController, project_root: Pa
     static_dir = (project_root / config.server.static_dir).resolve()
     app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
     return app
-

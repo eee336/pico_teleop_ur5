@@ -40,6 +40,10 @@
           <span>Stream</span>
           <strong id="streamState">Idle</strong>
         </div>
+        <div class="status-cell">
+          <span>Episode</span>
+          <strong id="recordingState">Idle</strong>
+        </div>
       </section>
 
       <section class="control-surface" aria-label="Controls">
@@ -49,6 +53,12 @@
           <button id="enableBtn" class="enable">Enable Motion</button>
           <button id="disableBtn" class="danger">Disable</button>
           <button id="resetBtn">Reset Cal</button>
+        </div>
+        <div class="record-row">
+          <input id="taskInput" type="text" value="teleoperate the UR5e safely" aria-label="Task instruction" />
+          <button id="startRecordingBtn" class="record">Start Episode</button>
+          <button id="stopRecordingBtn">Stop Episode</button>
+          <button id="discardRecordingBtn" class="danger">Discard</button>
         </div>
         <div id="notice" class="notice">Starting gateway connection...</div>
       </section>
@@ -67,6 +77,10 @@
           <strong id="messageState">0</strong>
         </div>
         <div>
+          <span>Frames</span>
+          <strong id="frameState">0</strong>
+        </div>
+        <div>
           <span>TCP pose</span>
           <strong id="tcpPose">--</strong>
         </div>
@@ -77,4 +91,3 @@
     <script type="module" src="/app.js"></script>
   </body>
 </html>
-
