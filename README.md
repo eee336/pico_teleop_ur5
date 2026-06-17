@@ -159,7 +159,7 @@ python -m quest_ur5e_teleop --config config/teleop.yaml --host 0.0.0.0 --port 80
 - `frames.jsonl`：每帧 TCP state、目标 action、Quest 手柄状态。
 - `images/<camera>/*.jpg`：启用摄像头后保存的图像。
 
-更完整的 LeRobot / SmolVLA 流程见 [docs/lerobot_smolvla.md](docs/lerobot_smolvla.md)。
+完整端到端流程见 [docs/end_to_end_workflow.md](docs/end_to_end_workflow.md)，更细的 LeRobot / SmolVLA 字段说明见 [docs/lerobot_smolvla.md](docs/lerobot_smolvla.md)。
 
 ## 导出 LeRobot
 
